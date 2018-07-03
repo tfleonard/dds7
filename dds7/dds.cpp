@@ -26,32 +26,17 @@ void DdsInit(void) {
 volatile uint8_t reg;
 
 	reg = DDRB;
-	reg |= DDS_OUT_BITS;		// set Led pin to output
+	reg |= (DDS_OUT_BITS | PGA_OUT_BITS);		// set Led pin to output
 	DDRB = reg;
 
 	reg = PORTB;
-	reg &= ~DDS_OUT_BITS;		
+	reg &= ~(DDS_OUT_BITS | PGA_OUT_BITS);	
+	reg |= (DDS_DEFAULT | PGA_DEFAULT);	
 	PORTB = reg;
 
-#ifdef LCD_TT	
-	reg |= DDS_RST;
-	PORTB = reg;
-	Clock::delay(50);
-	reg &= ~DDS_RST;
-	PORTB = reg;
-#endif
 
-	reg |= W_CLK;
-	PORTB = reg;
 
-	reg &= ~ W_CLK;
-	PORTB = reg;
 
-	reg |= FQUD_CLK;     // make sure we are in serial mode
-	PORTB = reg;
-	
-	reg &= ~FQUD_CLK;    
-	PORTB = reg;
 	
 }
 
@@ -134,4 +119,21 @@ volatile uint8_t temp;
 
 	sei();
 }
+
+
+
+
+void setGain(uint16_t gain) {
+
+
+
+
+
+
+}
+
+
+
+
+
 
