@@ -16,6 +16,7 @@
 #include "clock.h"
 #include "dds.h"
 
+void ddsSend(uint16_t *buf, uint8_t cnt);
 
 //
 // DDS uses bits PB0 - PB2, PB5
@@ -24,6 +25,8 @@
 void DdsInit(void) {
 
 volatile uint8_t reg;
+	uint16_t buf[5];
+	uint32_t freq = (uint32_t)((float)CNTS_PER_HZ * 1000000.0);
 
 	reg = DDRB;
 	reg |= (DDS_OUT_BITS | PGA_OUT_BITS);		// set Led pin to output
@@ -34,9 +37,12 @@ volatile uint8_t reg;
 	reg |= (DDS_DEFAULT | PGA_DEFAULT);	
 	PORTB = reg;
 
-
-
-
+	buf[0] = (DDS_CMD_B28 | DDS_CMD_RST);
+	buf[1] = DDS_REG_VFOA | (freq & DDS_FREQ_MSK);
+	buf[2] = DDS_REG_VFOA | ( (freq >> DDS_FREQ_MSB_SHFT) & DDS_FREQ_MSK);
+	buf[3] = DDS_REG_PHA;
+	buf[4] = DDS_CMD_B28;
+	ddsSend(buf, 5);
 	
 }
 
@@ -69,59 +75,49 @@ void dds(float fout) {
 
 float n;
 uint32_t phaseInc;
-int i;
-volatile uint8_t temp;
-
-	cli();
-//
-// the ports need to be protected with a semaphore if we
-// are going to make this code multi-tasking
-//
-	temp = PORTB;
-	temp &= ~DDS_OUT_BITS;
-	PORTB = temp;
+uint16_t buf[2];
 
 	n = fout * (float)CNTS_PER_HZ;		// phase change per clock
 	phaseInc = (uint32_t)n;
-
-	for (i=0;i<32;i++) {
-
-		if (phaseInc & 0x01) {
-			temp |= SD;
-    } else {
-			temp &= ~SD;
-		}            
-		PORTB = temp;								// data bit
-
-		temp |= W_CLK;					// set clk
-		PORTB = temp;
-		temp &= ~W_CLK;					// clear clk
-		PORTB = temp;	
-
-		phaseInc = phaseInc >> 1;		// shift next data bit to msb
-	}
-
-	temp &= ~SD;
-	PORTB = temp;								// data bit
-	for (i=0;i<8;i++) {
-		temp |= W_CLK;					// set clk
-		PORTB = temp;
-		temp &= ~W_CLK;					// clear clk
-		PORTB = temp;
-
-	}
-
-	temp |= FQUD_CLK;            // Load the phase accumulator
-	PORTB = temp;
-
-	temp &= ~FQUD_CLK;            // transfer shift reg to phase accumulator
-	PORTB = temp;
-
-	sei();
+	buf[0] = DDS_REG_VFOA | (phaseInc & DDS_FREQ_MSK);
+	buf[1] = DDS_REG_VFOA | ( (phaseInc >> DDS_FREQ_MSB_SHFT) & DDS_FREQ_MSK);
+	ddsSend(buf, 2);
+printf("fout: %7.5f, LSB: 0x%x, MSB: 0x%x\n", fout, buf[0], buf[1]);	
 }
 
 
 
+void ddsSend(uint16_t *buf, uint8_t cnt) {
+
+	cli();
+	PORTB &= 	~FQUD_CLK;
+
+	while (cnt--) {
+		uint16_t val = *buf++;
+		for (int i=0; i< 16; i++) {
+			if (val & 0x8000) {
+				PORTB |= SD;
+			} else {
+				PORTB &= ~SD;
+			}
+			PORTB |= W_CLK;
+			PORTB &= ~W_CLK;
+			val <<= 1;
+		}
+	}
+	
+	PORTB |= FQUD_CLK;
+	sei();
+}
+		
+		
+				
+	
+	
+	
+	
+	
+	
 
 void setGain(uint16_t gain) {
 
