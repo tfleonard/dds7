@@ -26,7 +26,8 @@ void DdsInit(void) {
 
 volatile uint8_t reg;
 	uint16_t buf[5];
-	uint32_t freq = (uint32_t)((float)CNTS_PER_HZ * 1000000.0);
+	float n = (float)CNTS_PER_HZ * 100000.0;
+	uint32_t freq = (uint32_t)n;
 
 	reg = DDRB;
 	reg |= (DDS_OUT_BITS | PGA_OUT_BITS);		// set Led pin to output
@@ -78,11 +79,14 @@ uint32_t phaseInc;
 uint16_t buf[2];
 
 	n = fout * (float)CNTS_PER_HZ;		// phase change per clock
+	
+//	n = (float)CNTS_PER_HZ * 100000.0;
+	
 	phaseInc = (uint32_t)n;
 	buf[0] = DDS_REG_VFOA | (phaseInc & DDS_FREQ_MSK);
 	buf[1] = DDS_REG_VFOA | ( (phaseInc >> DDS_FREQ_MSB_SHFT) & DDS_FREQ_MSK);
 	ddsSend(buf, 2);
-printf("fout: %7.5f, LSB: 0x%x, MSB: 0x%x\n", fout, buf[0], buf[1]);	
+printf("LSB: 0x%x, MSB: 0x%x\n", buf[0], buf[1]);	
 }
 
 
@@ -90,23 +94,25 @@ printf("fout: %7.5f, LSB: 0x%x, MSB: 0x%x\n", fout, buf[0], buf[1]);
 void ddsSend(uint16_t *buf, uint8_t cnt) {
 
 	cli();
+
+	PORTB |= W_CLK;
 	PORTB &= 	~FQUD_CLK;
 
 	while (cnt--) {
 		uint16_t val = *buf++;
+		
 		for (int i=0; i< 16; i++) {
 			if (val & 0x8000) {
 				PORTB |= SD;
 			} else {
 				PORTB &= ~SD;
 			}
-			PORTB |= W_CLK;
 			PORTB &= ~W_CLK;
+			PORTB |= W_CLK;
 			val <<= 1;
-		}
+		}	
 	}
-	
-	PORTB |= FQUD_CLK;
+	PORTB |= FQUD_CLK;	
 	sei();
 }
 		

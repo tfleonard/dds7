@@ -75,7 +75,7 @@ Clock *cl = new Clock();
 Timer *tmr = new Timer();
 
 #ifndef LCD_TT
-Led *led = new Led();
+//Led *led = new Led();
 #endif
 
 Lcd *l = new Lcd();
